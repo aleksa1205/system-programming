@@ -17,10 +17,10 @@ public class Book
     {
         isbn13 = new List<string>();
     }
-    public Book(string title, string author, string summ)
+    public Book(string title, string sum)
     {
         book_title = title;
-        summary = summ;
+        summary = sum;
         isbn13 = new List<string>();
     }
 }

@@ -17,7 +17,7 @@ public class HTTPServer
     private readonly Thread _listenerThread;
     private bool _running;
 
-    public HTTPServer(string address="localhost", int port = 5050)
+    public HTTPServer(string address = "localhost", int port = 5050)
     {
         _httpListener = new HttpListener();
         _httpListener.Prefixes.Add($"http://{address}:{port}/");
@@ -42,6 +42,16 @@ public class HTTPServer
         Console.WriteLine(logString);
     }
 
+    private static void SendToFile(string name, string surname, string content)
+    {
+        string pathToFile = Directory.GetCurrentDirectory() + "\\files";
+        using (StreamWriter outputStream = new StreamWriter(Path.Combine(pathToFile, $"{name} {surname}.txt")))
+        {
+            outputStream.Write(content);
+        }
+        Console.WriteLine("Written to file!");
+    }
+
     private async void AcceptConnection(HttpListenerContext context)
     {
         var request = context.Request;
@@ -61,9 +71,14 @@ public class HTTPServer
                 return;
             }
 
-            var first = url!.IndexOf("_");
-            var name = url.Substring(1, first - 1);
-            var surname = url.Substring(first + 1);
+            if(!url.Contains("_"))
+            {
+                SendResponse(context, "Invalid format for name and surname!"u8.ToArray(), "text/plain", HttpStatusCode.NotAcceptable);
+                return;
+            }    
+            var locationOfPart = url!.IndexOf("_");
+            var name = url.Substring(1, locationOfPart - 1);
+            var surname = url.Substring(locationOfPart + 1);
             if(!name.All(Char.IsLetter) && !surname.All(Char.IsLetter))
             {
                 SendResponse(context, "Name and surname can only contain letters!"u8.ToArray(), "text/plain", HttpStatusCode.UnprocessableContent);
@@ -80,9 +95,10 @@ public class HTTPServer
                 SendResponse(context, "No data for given name and surname found!"u8.ToArray(), "text/plain", HttpStatusCode.NoContent);
                 return;
             }
-            string tmp = String.Join(Environment.NewLine, dataTitles);
-            byte[] dataAsBytes = System.Text.Encoding.UTF8.GetBytes(tmp);
+            string allTitles = String.Join(Environment.NewLine, dataTitles);
+            byte[] dataAsBytes = System.Text.Encoding.UTF8.GetBytes(allTitles);
             SendResponse(context, dataAsBytes, "text/plain");
+            SendToFile(name, surname, allTitles);
         }
         catch(HttpRequestException)
         {
