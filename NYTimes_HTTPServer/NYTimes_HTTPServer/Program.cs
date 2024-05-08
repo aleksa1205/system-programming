@@ -1,4 +1,5 @@
 ﻿using NYTimes_HTTPServer;
+using System.Diagnostics;
 
 HTTPServer server=new HTTPServer();
 server.Start();

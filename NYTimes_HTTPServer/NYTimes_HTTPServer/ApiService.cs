@@ -23,30 +23,40 @@ public class ApiService
         client = new HttpClient();
     }
 
-    public async Task<List<string>> FetchData(string name, string surname)
+    public List<string> FetchData(string name, string surname)
     {
-        List<JObject> data = new List<JObject>();
         List<Book> books=new List<Book>();
 
         string url = $"{baseURL}?author={name}+{surname}&api-key={apiKey}";
-        await client.GetAsync(url).ContinueWith(async (response) =>
-        {
-            var responseBody = await response.Result.Content.ReadAsStringAsync();
-            var obj = JObject.Parse(responseBody);
-            if (responseBody.Contains("faultstring"))
-            {
-                books = null!;
-                return;
-            }
-            var res = obj["results"];
-            books = res!.ToObject<List<Book>>()!;
+        HttpResponseMessage response = client.GetAsync(url).Result;
+        response.EnsureSuccessStatusCode();
 
-            data.Add(JObject.Parse(responseBody));
-        });
-        if (books == null)
+        //ovo je sinhorna operacija
+        var responseBody = response.Content.ReadAsStringAsync().Result;
+        var obj = JObject.Parse(responseBody);
+        if (responseBody.Contains("faultstring"))
         {
+            books = null!;
             throw new HttpRequestException();
         }
+        var res = obj["results"];
+        books = res!.ToObject<List<Book>>()!;
+
         return books.Select(x => x.book_title).ToList();
     }
 }
+
+//await client.GetAsync(url).ContinueWith(async (response) =>
+//{
+//    var responseBody = await response.Result.Content.ReadAsStringAsync();
+//    var obj = JObject.Parse(responseBody);
+//    if (responseBody.Contains("faultstring"))
+//    {
+//        books = null!;
+//        return;
+//    }
+//    var res = obj["results"];
+//    books = res!.ToObject<List<Book>>()!;
+
+//    data.Add(JObject.Parse(responseBody));
+//});

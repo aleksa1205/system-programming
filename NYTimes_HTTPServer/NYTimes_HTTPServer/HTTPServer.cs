@@ -52,7 +52,7 @@ public class HTTPServer
         Console.WriteLine("Written to file!");
     }
 
-    private async void AcceptConnection(HttpListenerContext context)
+    private void AcceptConnection(HttpListenerContext context)
     {
         var request = context.Request;
         if (request.HttpMethod != "GET")
@@ -85,7 +85,7 @@ public class HTTPServer
                 return;
             }
 
-            List<string> dataTitles = await apiService.FetchData(name, surname);
+            List<string> dataTitles = apiService.FetchData(name, surname);
             if (dataTitles == null)
             {
                 SendResponse(context, "API returned an error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
