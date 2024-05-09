@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -15,6 +16,8 @@ public class HTTPServer
 {
     private readonly HttpListener _httpListener;
     private readonly Thread _listenerThread;
+    private readonly Cache _cache;
+    private readonly ReaderWriterLockSlim _readWriteLock;
     private bool _running;
 
     public HTTPServer(string address = "localhost", int port = 5050)
@@ -22,6 +25,8 @@ public class HTTPServer
         _httpListener = new HttpListener();
         _httpListener.Prefixes.Add($"http://{address}:{port}/");
         _listenerThread = new Thread(Listen);
+        _cache = new Cache();
+        _readWriteLock = new ReaderWriterLockSlim();
         _running = false;
     }
 
@@ -42,14 +47,26 @@ public class HTTPServer
         Console.WriteLine(logString);
     }
 
-    private static void SendToFile(string name, string surname, string content)
+    private void SendToFile(string name, string surname, string content)
     {
-        string pathToFile = Directory.GetCurrentDirectory() + "\\files";
-        using (StreamWriter outputStream = new StreamWriter(Path.Combine(pathToFile, $"{name} {surname}.txt")))
+        _readWriteLock.EnterWriteLock();
+        try
         {
-            outputStream.Write(content);
+            string pathToFile = Directory.GetCurrentDirectory() + "\\files";
+            using (StreamWriter outputStream = new StreamWriter(Path.Combine(pathToFile, $"{name} {surname}.txt")))
+            {
+                outputStream.Write(content);
+            }
+            Console.WriteLine("Written to file!");
         }
-        Console.WriteLine("Written to file!");
+        catch(Exception)
+        {
+            Console.WriteLine("Error while trying to write to file!");
+        }
+        finally
+        {
+            _readWriteLock.ExitWriteLock();
+        }
     }
 
     private void AcceptConnection(HttpListenerContext context)
@@ -60,11 +77,12 @@ public class HTTPServer
             SendResponse(context, "Method not allowed!"u8.ToArray(), "text/plain", HttpStatusCode.MethodNotAllowed);
             return;
         }
-
         try
         {
             ApiService apiService = new ApiService();
             string url = request.RawUrl!;
+            string allTitles;
+
             if (url == String.Empty)
             {
                 SendResponse(context, "No name and surname given!"u8.ToArray(), "text/plain", HttpStatusCode.BadRequest);
@@ -85,27 +103,50 @@ public class HTTPServer
                 return;
             }
 
-            List<string> dataTitles = apiService.FetchData(name, surname);
-            if (dataTitles == null)
+            string fileName = name + ' ' + surname;
+            if (_cache.HasKey(fileName))
             {
-                SendResponse(context, "API returned an error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
+                allTitles = _cache.Read(fileName);
+                Console.WriteLine("Obtained from cache!");
             }
-            if (dataTitles!.Count == 0)
+            else
             {
-                SendResponse(context, "No data for given name and surname found!"u8.ToArray(), "text/plain", HttpStatusCode.NoContent);
-                return;
+                List<string> dataTitles = apiService.FetchData(name, surname);
+                if (dataTitles!.Count == 0)
+                {
+                    SendResponse(context, "No data for given name and surname found!"u8.ToArray(), "text/plain", HttpStatusCode.NoContent);
+                    return;
+                }
+                allTitles = String.Join(Environment.NewLine, dataTitles);
+                SendToFile(name, surname, allTitles);
+                _cache.Add(fileName, allTitles, 1000);
             }
-            string allTitles = String.Join(Environment.NewLine, dataTitles);
             byte[] dataAsBytes = System.Text.Encoding.UTF8.GetBytes(allTitles);
             SendResponse(context, dataAsBytes, "text/plain");
-            SendToFile(name, surname, allTitles);
+        }
+        catch (KeyNotFoundException)
+        {
+            Console.WriteLine("List with given key does not exist in cache!");
+            SendResponse(context, "List with given key does not exist in cache!"u8.ToArray(), "text/plain", HttpStatusCode.NotFound);
+        }
+        catch (TimeoutException)
+        {
+            Console.WriteLine("Time for writing into cache has passed!");
+            SendResponse(context, "Time for writing into cache has passed!"u8.ToArray(), "text/plain", HttpStatusCode.RequestTimeout);
+        }
+        catch (DuplicateNameException)
+        {
+            Console.WriteLine("List with given key already exists in cache!");
+            SendResponse(context, "List with given key already exists in cache!"u8.ToArray(), "text/plain", HttpStatusCode.Conflict);
         }
         catch(HttpRequestException)
         {
+            Console.WriteLine("API returned an error!");
             SendResponse(context, "API returned an error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
         }
         catch(Exception)
         {
+            Console.WriteLine("Unknown error!");
             SendResponse(context, "Unknown error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
         }
     }

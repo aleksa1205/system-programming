@@ -36,7 +36,6 @@ public class ApiService
         var obj = JObject.Parse(responseBody);
         if (responseBody.Contains("faultstring"))
         {
-            books = null!;
             throw new HttpRequestException();
         }
         var res = obj["results"];
