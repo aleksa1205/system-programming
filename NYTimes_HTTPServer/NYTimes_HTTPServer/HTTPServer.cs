@@ -53,6 +53,11 @@ public class HTTPServer
         try
         {
             string pathToFile = Directory.GetCurrentDirectory() + "\\files";
+            if(!Directory.Exists(pathToFile))
+            {
+                Directory.CreateDirectory(pathToFile);
+            }
+            Console.WriteLine(pathToFile);
             using (StreamWriter outputStream = new StreamWriter(Path.Combine(pathToFile, $"{name} {surname}.txt")))
             {
                 outputStream.Write(content);
