@@ -74,6 +74,7 @@ public class HTTPServer
         var request = context.Request;
         if (request.HttpMethod != "GET")
         {
+            Console.WriteLine("Method not allowed!");
             SendResponse(context, "Method not allowed!"u8.ToArray(), "text/plain", HttpStatusCode.MethodNotAllowed);
             return;
         }
@@ -107,11 +108,11 @@ public class HTTPServer
             if (_cache.HasKey(fileName))
             {
                 allTitles = _cache.Read(fileName);
-                Console.WriteLine("Obtained from cache!");
+                Console.WriteLine("OBTAINED FROM CACHE!");
             }
             else
             {
-                List<string> dataTitles = apiService.FetchData(name, surname);
+                List<string> dataTitles = apiService.FetchDataTitles(name, surname);
                 if (dataTitles!.Count == 0)
                 {
                     SendResponse(context, "No data for given name and surname found!"u8.ToArray(), "text/plain", HttpStatusCode.NoContent);

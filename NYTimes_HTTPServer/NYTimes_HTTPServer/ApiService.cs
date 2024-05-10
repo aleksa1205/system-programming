@@ -23,9 +23,9 @@ public class ApiService
         client = new HttpClient();
     }
 
-    public List<string> FetchData(string name, string surname)
+    public List<string> FetchDataTitles(string name, string surname)
     {
-        List<Book> books=new List<Book>();
+        List<string> books=new List<string>();
 
         string url = $"{baseURL}?author={name}+{surname}&api-key={apiKey}";
         HttpResponseMessage response = client.GetAsync(url).Result;
@@ -38,13 +38,15 @@ public class ApiService
         {
             throw new HttpRequestException();
         }
-        var res = obj["results"];
-        books = res!.ToObject<List<Book>>()!;
-
-        return books.Select(x => x.book_title).ToList();
+        foreach (var el in obj["results"]!)
+        {
+            books.Add(el["book_title"]!.ToObject<string>()!);
+        }
+        return books;
     }
 }
 
+//FetchData koriscenjem await i async bolji nacin bice obradjen u 2. domacem
 //await client.GetAsync(url).ContinueWith(async (response) =>
 //{
 //    var responseBody = await response.Result.Content.ReadAsStringAsync();
@@ -59,3 +61,8 @@ public class ApiService
 
 //    data.Add(JObject.Parse(responseBody));
 //});
+
+//Nacin 1 sa klasom Book
+//var res = obj["results"];
+//books = res!.ToObject<List<Book>>()!;
+//return books.Select(x => x.book_title).ToList();
