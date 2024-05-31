@@ -91,4 +91,14 @@ public class Cache
     {
         return _cache.Contains(key);
     }
+
+    //clearing cache at the end
+    public void Destroy() 
+    {
+        _cacheLock.EnterWriteLock();
+        _cache.Clear();
+        string pathToFile = Directory.GetCurrentDirectory() + "\\files";
+        Directory.Delete(pathToFile,true);
+        _cacheLock.ExitWriteLock();
+    }
 }

@@ -137,9 +137,11 @@ public class HTTPServer
 
     public void Stop()
     {
-        _httpListener.Stop();
-        _listenerThread.Join();
         _running = false;
+        _listenerThread.Interrupt();
+        _listenerThread.Join();
+        _cache.Destroy();
+        _httpListener.Stop();
         Console.WriteLine("Server stopped!");
     }
 
