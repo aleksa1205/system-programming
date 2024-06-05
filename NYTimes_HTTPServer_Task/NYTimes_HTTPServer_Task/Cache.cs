@@ -26,12 +26,12 @@ public class Cache
         {
             Directory.CreateDirectory(path);
         }
-        object locker = new object();
+        object locker = new object();   
         lock (locker)
         {
             using (StreamWriter writer = new StreamWriter(Path.Combine(path, $"{key}.txt")))
             {
-                writer.Write(value);
+                writer.WriteAsync(value);
             }
         }
     }
@@ -49,7 +49,7 @@ public class Cache
         if (_cache.Count == _cacheCapacity)
         {
             //cleanup
-            _cache.Clear();
+            Destroy();
         }
         _cache.Add(key);
         SendToFile(key, value);
@@ -92,13 +92,15 @@ public class Cache
         return _cache.Contains(key);
     }
 
-    //clearing cache at the end
     public void Destroy() 
     {
         _cacheLock.EnterWriteLock();
         _cache.Clear();
         string pathToFile = Directory.GetCurrentDirectory() + "\\files";
-        Directory.Delete(pathToFile,true);
+        if (Directory.Exists(pathToFile))
+        {
+            Directory.Delete(pathToFile,true);
+        }
         _cacheLock.ExitWriteLock();
     }
 }
