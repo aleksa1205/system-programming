@@ -1,0 +1,13 @@
+**Zadatak 17**
+
+Kreirati Web server koji klijentu omogućava pretagu knjiga korišćenjem New York Times APIa. 
+Pretraga se može vršiti pomoću filtera koji se definišu u okviru query-a. Spisak knjiga koje
+zadovoljavaju uslov se vraćaju kao odgovor klijentu (pretragu knjiga vršiti po autoru). Svi zahtevi
+serveru se šalju preko browser-a korišćenjem GET metode. Ukoliko navedene knjige ne postoje,
+prikazati grešku klijentu.
+
+Način funkcionisanja New York Times API-a je moguće proučiti na sledećem linku:
+https://developer.nytimes.com/docs/books-product/1/overview
+
+Primer poziva serveru:
+https://api.nytimes.com/svc/books/v3/reviews.json?author=Stephen+King&api-key=yourkey
