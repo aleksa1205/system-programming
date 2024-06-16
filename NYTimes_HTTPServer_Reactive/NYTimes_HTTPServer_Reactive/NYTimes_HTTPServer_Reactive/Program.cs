@@ -1,3 +1,15 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using NYTimes_HTTPServer_Reactive;
 
-Console.WriteLine("Hello, World!");
+var server = new HttpServer();
+server.Start();
+Console.WriteLine("Press Enter to stop the server...");
+
+// var newsApi = new NewsApiClientService(5);
+// var result = await newsApi.GetEverything("bitcoin");
+// foreach (var element in result)
+// {
+//     Console.WriteLine(element + "\n");
+// }
+
+while (Console.ReadKey().Key != ConsoleKey.Enter) { }
+server.Stop();

@@ -5,7 +5,7 @@ sadržaja za određene članke (content property).
 
 Koristiti /v2/everything endpoint. 
 
-Prilikom pozivaproslediti odgovarajuću ključnu reč (keyword). 
+Prilikom poziva proslediti odgovarajuću ključnu reč (keyword). 
 
 Za prikupljene sadržaje implementirati Sentiment analizu koristeći SentimentAnalysis.NET ili ML.NET biblioteke. Prikazati dobijene rezultate.
 
