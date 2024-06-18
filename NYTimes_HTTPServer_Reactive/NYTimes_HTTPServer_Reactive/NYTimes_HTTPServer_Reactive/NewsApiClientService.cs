@@ -15,12 +15,14 @@ public class NewsApiClientService(int maxResultLength = 100)
         {
             Q = keyword
         });
+
+        List<string> result = [];
         
         if (response.Status == Statuses.Ok)
         {
             Console.WriteLine($"Number of articles found: {response.TotalResults}.\nFirst {MaxResultLength} will be returned.");
 
-            return
+            result = 
                 (from article in response.Articles
                 select article.Content)
                 .Take(MaxResultLength)
@@ -30,7 +32,8 @@ public class NewsApiClientService(int maxResultLength = 100)
         else
         {
             Console.WriteLine($"Get everything call failed with code: {response.Error.Code}\n{response.Error.Message}");
-            return [];
         }
+
+        return result;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Text;
 using System.Web;
 
 namespace NYTimes_HTTPServer_Reactive;
@@ -35,7 +36,7 @@ public class HttpServer
         Console.WriteLine(logString);
     }
 
-    private async Task AcceptConnection(HttpListenerContext context)
+    private static async Task AcceptConnection(HttpListenerContext context)
     {
         var request = context.Request;
         if (request.HttpMethod != "GET")
@@ -44,13 +45,12 @@ public class HttpServer
             SendResponse(context, "Method not allowed!"u8.ToArray(), "text/plain", HttpStatusCode.MethodNotAllowed);
             return;
         }
-
-
+        
         try
         {
             var rawUrl = request.RawUrl;
             
-            if (string.IsNullOrEmpty(request.RawUrl))
+            if (string.IsNullOrEmpty(rawUrl))
             {
                 SendResponse(context, "No keyword given!"u8.ToArray(), "text/plain", HttpStatusCode.BadRequest);
                 return;
@@ -58,10 +58,31 @@ public class HttpServer
             
             var apiService = new NewsApiClientService(5);
             
-            var paramsCollection = HttpUtility.ParseQueryString(rawUrl!);
+            var paramsCollection = HttpUtility.ParseQueryString(rawUrl);
 
             var keyword = paramsCollection.Get(0);
-            Console.WriteLine(keyword);
+            if (keyword is null)
+            {
+                SendResponse(context, "Keyword is null!"u8.ToArray(), "text/plain", HttpStatusCode.BadRequest);
+                return;
+            }
+
+            if (keyword.Length < 3)
+            {
+                SendResponse(context, "Keyword must be at least 3 characters!"u8.ToArray(), "text/plain", HttpStatusCode.BadRequest);
+                return;
+            }
+
+            var data = await apiService.GetEverything(keyword);
+            if (data.Count == 0)
+            {
+                SendResponse(context, "No content for given keyword!"u8.ToArray(), "text/plain", HttpStatusCode.BadRequest);
+                return;
+            }
+
+            var dataAsString = string.Join(Environment.NewLine, data);
+            var dataAsBytes = Encoding.UTF8.GetBytes(dataAsString);
+            SendResponse(context, dataAsBytes, "text/plain");
         }
         catch (HttpRequestException)
         {
