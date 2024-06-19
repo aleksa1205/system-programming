@@ -1,22 +1,35 @@
 ﻿using System.Net;
-using System.Text;
+using System.Reactive.Disposables;
 using System.Web;
 
-namespace NYTimes_HTTPServer_Reactive;
+namespace NYTimes_HTTPServer_Reactive.ReactiveLayers;
 
-public class HttpServer
+public class HttpServer : IObservable<(HttpListenerContext, string)>
 {
     private readonly HttpListener _httpListener;
     private bool _running;
+    private readonly List<IObserver<(HttpListenerContext, string)>> _observers;
 
     public HttpServer(string address="localhost", int port = 5050)
     {
         _httpListener = new HttpListener();
         _httpListener.Prefixes.Add($"http://{address}:{port}/");
         _running = false;
+        _observers = [];
     }
 
-    private static void SendResponse(HttpListenerContext context, byte[] responseBody, string contentType,
+    public IDisposable Subscribe(IObserver<(HttpListenerContext, string)> observer)
+    {
+        if(!_observers.Contains(observer))
+            _observers.Add(observer);
+
+        return new Unsubscriber<(HttpListenerContext, string)>(_observers, observer);
+        // Drugi (bolji) nacin za vracanje IDisposable instance.
+        // Ovo je factory koji kreira instancu IDisposable interfejsa bez potrebe pisanja Unsubscriber klase.
+        // return Disposable.Create(() => _observers.Remove(observer));
+    }
+
+    public static void SendResponse(HttpListenerContext context, byte[] responseBody, string contentType,
         HttpStatusCode statusCode = HttpStatusCode.OK)
     {
         var logString =
@@ -36,7 +49,7 @@ public class HttpServer
         Console.WriteLine(logString);
     }
 
-    private static async Task AcceptConnection(HttpListenerContext context)
+    private void AcceptConnection(HttpListenerContext context)
     {
         var request = context.Request;
         if (request.HttpMethod != "GET")
@@ -56,8 +69,6 @@ public class HttpServer
                 return;
             }
             
-            var apiService = new NewsApiClientService(5);
-            
             var paramsCollection = HttpUtility.ParseQueryString(rawUrl);
 
             var keyword = paramsCollection.Get(0);
@@ -73,16 +84,19 @@ public class HttpServer
                 return;
             }
 
-            var data = await apiService.GetEverything(keyword);
-            if (data.Count == 0)
-            {
-                SendResponse(context, "No content for given keyword!"u8.ToArray(), "text/plain", HttpStatusCode.BadRequest);
-                return;
-            }
+            NotifyObservers(context, keyword);
 
-            var dataAsString = string.Join(Environment.NewLine, data);
-            var dataAsBytes = Encoding.UTF8.GetBytes(dataAsString);
-            SendResponse(context, dataAsBytes, "text/plain");
+            // var apiService = new NewsApiClientService(5);
+            // var data = await apiService.GetEverything(keyword);
+            // if (data.Count == 0)
+            // {
+            //     SendResponse(context, "No content for given keyword!"u8.ToArray(), "text/plain", HttpStatusCode.BadRequest);
+            //     return;
+            // }
+            //
+            // var dataAsString = string.Join(Environment.NewLine, data);
+            // var dataAsBytes = Encoding.UTF8.GetBytes(dataAsString);
+            // SendResponse(context, dataAsBytes, "text/plain");
         }
         catch (HttpRequestException)
         {
@@ -93,6 +107,14 @@ public class HttpServer
         {
             Console.WriteLine("Unknown error!");
             SendResponse(context, "Unknown error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
+        }
+    }
+
+    private void NotifyObservers(HttpListenerContext context, string keyword)
+    {
+        foreach (var observer in _observers)
+        {
+            observer.OnNext((context, keyword));
         }
     }
 
@@ -121,7 +143,7 @@ public class HttpServer
 
                 if (_running)
                 {
-                    await Task.Run(() => AcceptConnection(context));
+                    AcceptConnection(context);
                 }
             }
             catch (HttpListenerException e)
