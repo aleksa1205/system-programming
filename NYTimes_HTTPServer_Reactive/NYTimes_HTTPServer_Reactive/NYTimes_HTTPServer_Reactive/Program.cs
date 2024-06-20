@@ -1,16 +1,28 @@
-﻿using NYTimes_HTTPServer_Reactive.Observers;
+﻿using System.Net;
+using System.Reactive;
 using NYTimes_HTTPServer_Reactive.ReactiveLayers;
 
 var server = new HttpServer();
 server.Start();
 Console.WriteLine("Press Enter to stop the server...");
 
-var observer = new ConsoleObserver();
-var subscription = server.Subscribe(observer);
+var newsApiCall = new NewsApiCall();
+server.Subscribe(newsApiCall);
 
-Thread.Sleep(10000);
-Console.WriteLine("Unsubscribing...");
-subscription.Dispose();
+var observer = Observer.Create<(HttpListenerContext, List<string>)>(
+    onNext: (value) => Print(value.Item2)
+);
+
+newsApiCall.Subscribe(observer);
 
 while (Console.ReadKey().Key != ConsoleKey.Enter) { }
 server.Stop();
+
+static void Print(List<string> list)
+{
+    foreach (var el in list)
+    {
+        Console.WriteLine(el);
+        Console.WriteLine();
+    }
+}

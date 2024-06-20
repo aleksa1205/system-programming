@@ -113,9 +113,7 @@ public class HttpServer : IObservable<(HttpListenerContext, string)>
     private void NotifyObservers(HttpListenerContext context, string keyword)
     {
         foreach (var observer in _observers)
-        {
             observer.OnNext((context, keyword));
-        }
     }
 
     public void Start()
