@@ -1,39 +1,27 @@
 ﻿using System.Net;
 using System.Reactive;
+using NYTimes_HTTPServer_Reactive.Observers;
 using NYTimes_HTTPServer_Reactive.ReactiveLayers;
 
+var model = new ModelTraining();
 var server = new HttpServer();
+var newsApiCall = new NewsApiCall();
+var analysis = new SentimentAnalysis();
+
 server.Start();
 Console.WriteLine("Press Enter to stop the server...");
 
-var newsApiCall = new NewsApiCall();
 server.Subscribe(newsApiCall);
 
-var observer = Observer.Create<(HttpListenerContext, List<string>)>(
-    onNext: (value) => Print(value.Item2)
-);
+newsApiCall.Subscribe(analysis);
+model.Subscribe(analysis);
 
-newsApiCall.Subscribe(observer);
-
-var model = new ModelTraining();
-var observer2 = Observer.Create<bool>(
-    onNext: (value) => Console.WriteLine(value),
-    onCompleted: () => Console.WriteLine("Model training finished")
-);
-
-model.Subscribe(observer2);
 model.StartTraining();
+
+var observer = new HttpResponseObserver();
+analysis.Subscribe(observer);
 
 while (Console.ReadKey().Key != ConsoleKey.Enter) { }
 server.Stop();
 
 return;
-
-static void Print(List<string> list)
-{
-    foreach (var el in list)
-    {
-        Console.WriteLine(el);
-        Console.WriteLine();
-    }
-}

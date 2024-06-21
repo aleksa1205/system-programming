@@ -27,7 +27,7 @@ public class NewsApiCall : IObserver<(HttpListenerContext, string)>, IObservable
         var context = value.Item1;
         var keyword = value.Item2;
 
-        var apiService = new NewsApiClientService(5);
+        var apiService = new NewsApiClientService();
         var contentList = await apiService.GetEverythingAsync(keyword);
         
         NotifyObservers(context, contentList);

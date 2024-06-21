@@ -85,18 +85,6 @@ public class HttpServer : IObservable<(HttpListenerContext, string)>
             }
 
             NotifyObservers(context, keyword);
-
-            // var apiService = new NewsApiClientService(5);
-            // var data = await apiService.GetEverything(keyword);
-            // if (data.Count == 0)
-            // {
-            //     SendResponse(context, "No content for given keyword!"u8.ToArray(), "text/plain", HttpStatusCode.BadRequest);
-            //     return;
-            // }
-            //
-            // var dataAsString = string.Join(Environment.NewLine, data);
-            // var dataAsBytes = Encoding.UTF8.GetBytes(dataAsString);
-            // SendResponse(context, dataAsBytes, "text/plain");
         }
         catch (HttpRequestException)
         {
