@@ -34,37 +34,21 @@ public class NewsApiClientService(int maxResultLength = 100)
     
     public async Task<List<string>> GetEverythingAsync(string keyword)
     {
-        try
+        var response = await _newsApiClient.GetEverythingAsync(new EverythingRequest
         {
-            var response = await _newsApiClient.GetEverythingAsync(new EverythingRequest
-            {
-                Q = keyword
-            });
+            Q = keyword
+        });
 
-            return GetContentFromResponse(response);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e.Message);
-            return [];
-        }
+        return GetContentFromResponse(response);
     }
 
     public List<string> GetEverything(string keyword)
     {
-        try
+        var response = _newsApiClient.GetEverything(new EverythingRequest
         {
-            var response = _newsApiClient.GetEverything(new EverythingRequest
-            {
-                Q = keyword
-            });
+            Q = keyword
+        });
 
-            return GetContentFromResponse(response);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e.Message);
-            return [];
-        }
+        return GetContentFromResponse(response);
     }
 }
