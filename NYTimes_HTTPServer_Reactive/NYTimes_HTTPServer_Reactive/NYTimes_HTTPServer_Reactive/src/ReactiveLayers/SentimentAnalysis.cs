@@ -10,6 +10,7 @@ public class SentimentAnalysis : IObservable<(HttpListenerContext, List<Sentimen
 {
     private readonly List<IObserver<(HttpListenerContext, List<SentimentPrediction>)>> _observers = [];
     private PredictionEngine<SentimentData, SentimentPrediction>? _predictionEngine;
+    private readonly IScheduler _scheduler = TaskPoolScheduler.Default;
 
     public IDisposable Subscribe(IObserver<(HttpListenerContext, List<SentimentPrediction>)> observer)
     {
@@ -26,34 +27,37 @@ public class SentimentAnalysis : IObservable<(HttpListenerContext, List<Sentimen
         var context = value.Item1;
         var contentList = value.Item2;
 
-        try
+        _scheduler.Schedule(() =>
         {
-            Console.WriteLine($"Sentiment analysis doing work on thread: {Environment.CurrentManagedThreadId}");
-            
-            List<SentimentPrediction> result = [];
-            if (_predictionEngine is null)
-                LoadModel();
-
-            foreach (var contentElement in contentList)
+            try
             {
-                var input = new SentimentData
+                Console.WriteLine($"Sentiment analysis doing work on thread: {Environment.CurrentManagedThreadId}");
+
+                List<SentimentPrediction> result = [];
+                if (_predictionEngine is null)
+                    LoadModel();
+
+                foreach (var contentElement in contentList)
                 {
-                    SentimentText = contentElement
-                };
+                    var input = new SentimentData
+                    {
+                        SentimentText = contentElement
+                    };
 
-                var prediction = _predictionEngine!.Predict(input);
-                result.Add(prediction);
+                    var prediction = _predictionEngine!.Predict(input);
+                    result.Add(prediction);
+                }
+
+                ObserverUtility<(HttpListenerContext, List<SentimentPrediction>)>.NotifyOnNext(_observers,
+                    (context, result));
             }
-
-            ObserverUtility<(HttpListenerContext, List<SentimentPrediction>)>.NotifyOnNext(_observers,
-                (context, result));
-        }
-        catch (Exception e)
-        {
-            HttpServer.SendResponse(context, "Prediction error"u8.ToArray(), "text/plain",
-                HttpStatusCode.InternalServerError);
-            ObserverUtility<(HttpListenerContext, List<SentimentPrediction>)>.NotifyOnError(_observers, e);
-        }
+            catch (Exception e)
+            {
+                HttpServer.SendResponse(context, "Prediction error"u8.ToArray(), "text/plain",
+                    HttpStatusCode.InternalServerError);
+                ObserverUtility<(HttpListenerContext, List<SentimentPrediction>)>.NotifyOnError(_observers, e);
+            }
+        });
     }
 
     public void OnError(Exception error)

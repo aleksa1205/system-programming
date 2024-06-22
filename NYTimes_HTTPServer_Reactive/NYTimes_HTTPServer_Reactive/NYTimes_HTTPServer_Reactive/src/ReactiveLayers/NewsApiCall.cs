@@ -8,6 +8,7 @@ namespace NYTimes_HTTPServer_Reactive.ReactiveLayers;
 public class NewsApiCall : IObserver<(HttpListenerContext, string)>, IObservable<(HttpListenerContext, List<string>)>
 {
     private readonly List<IObserver<(HttpListenerContext, List<string>)>> _observers = [];
+    private readonly IScheduler _scheduler = TaskPoolScheduler.Default;
 
     public IDisposable Subscribe(IObserver<(HttpListenerContext, List<string>)> observer)
     {
@@ -23,21 +24,24 @@ public class NewsApiCall : IObserver<(HttpListenerContext, string)>, IObservable
         Console.WriteLine($"News api call layer received value on thread: {Environment.CurrentManagedThreadId}");
         var context = value.Item1;
         var keyword = value.Item2;
-        
-        try
-        {
-            Console.WriteLine($"News api call layer doing work on thread: {Environment.CurrentManagedThreadId}");
-            var apiService = new NewsApiClientService();
-            var contentList = apiService.GetEverything(keyword);
 
-            ObserverUtility<(HttpListenerContext, List<string>)>.NotifyOnNext(_observers, (context, contentList));
-        }
-        catch (Exception e)
+        _scheduler.Schedule(() =>
         {
-            HttpServer.SendResponse(context, "API returned an error!"u8.ToArray(), "text/plain",
-                HttpStatusCode.InternalServerError);
-            ObserverUtility<(HttpListenerContext, List<string>)>.NotifyOnError(_observers, e);
-        }
+            try
+            {
+                Console.WriteLine($"News api call layer doing work on thread: {Environment.CurrentManagedThreadId}");
+                var apiService = new NewsApiClientService();
+                var contentList = apiService.GetEverything(keyword);
+
+                ObserverUtility<(HttpListenerContext, List<string>)>.NotifyOnNext(_observers, (context, contentList));
+            }
+            catch (Exception e)
+            {
+                HttpServer.SendResponse(context, "API returned an error!"u8.ToArray(), "text/plain",
+                    HttpStatusCode.InternalServerError);
+                ObserverUtility<(HttpListenerContext, List<string>)>.NotifyOnError(_observers, e);
+            }
+        });
     }
 
     public void OnError(Exception e)

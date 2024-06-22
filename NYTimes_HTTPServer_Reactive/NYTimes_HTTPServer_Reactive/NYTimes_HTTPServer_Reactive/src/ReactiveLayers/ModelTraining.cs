@@ -1,4 +1,5 @@
-﻿using Microsoft.ML;
+﻿using System.Reactive.Concurrency;
+using Microsoft.ML;
 using NYTimes_HTTPServer_Reactive.AiModel;
 using Spectre.Console;
 using Console = Spectre.Console.AnsiConsole;
@@ -16,26 +17,29 @@ public class ModelTraining : IObservable<bool>
     private DataOperationsCatalog.TrainTestData _trainingDataViewSplit;
 
     private readonly List<IObserver<bool>> _observers = [];
+    private readonly IScheduler _scheduler = TaskPoolScheduler.Default;
 
     public void StartTraining()
     {
-        System.Console.WriteLine($"Model training started on thread: {Environment.CurrentManagedThreadId}");
-        
-        try
+        _scheduler.Schedule(() =>
         {
-            _trainingDataView = _mlContext.Data.LoadFromTextFile<SentimentData>(_dataPath, separatorChar: ',');
-            _trainingDataViewSplit = _mlContext.Data.TrainTestSplit(_trainingDataView, testFraction: 0.2);
+            System.Console.WriteLine($"Model training started on thread: {Environment.CurrentManagedThreadId}");
+            try
+            {
+                _trainingDataView = _mlContext.Data.LoadFromTextFile<SentimentData>(_dataPath, separatorChar: ',');
+                _trainingDataViewSplit = _mlContext.Data.TrainTestSplit(_trainingDataView, testFraction: 0.2);
 
-            var pipeline = ProcessData();
-            var trainingPipeline = BuildAndTrainModel(_trainingDataView, pipeline);
-            Evaluate(_trainingDataView.Schema);
-            
-            ObserverUtility<bool>.NotifyOnNextOnCompleted(_observers, true);
-        }
-        catch (Exception e)
-        {
-            ObserverUtility<bool>.NotifyOnError(_observers, e);
-        }
+                var pipeline = ProcessData();
+                var trainingPipeline = BuildAndTrainModel(_trainingDataView, pipeline);
+                Evaluate(_trainingDataView.Schema);
+
+                ObserverUtility<bool>.NotifyOnNextOnCompleted(_observers, true);
+            }
+            catch (Exception e)
+            {
+                ObserverUtility<bool>.NotifyOnError(_observers, e);
+            }
+        });
     }
 
     public IDisposable Subscribe(IObserver<bool> observer)
