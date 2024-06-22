@@ -1,10 +1,10 @@
 ﻿using System.Net;
-using System.Reactive.Disposables;
 using System.Web;
+using NYTimes_HTTPServer_Reactive.ReactiveModels;
 
 namespace NYTimes_HTTPServer_Reactive.ReactiveLayers;
 
-public class HttpServer : IObservable<(HttpListenerContext, string)>
+public class HttpServer : IObservable<(HttpListenerContext, string)>, IObserver<bool>
 {
     private readonly HttpListener _httpListener;
     private bool _running;
@@ -29,6 +29,25 @@ public class HttpServer : IObservable<(HttpListenerContext, string)>
         // return Disposable.Create(() => _observers.Remove(observer));
     }
 
+    public void OnNext(bool value)
+    {
+        Console.WriteLine($"Http server received value on thread: {Environment.CurrentManagedThreadId}");
+        if (value) Start();
+        else Stop();
+    }
+
+    public void OnError(Exception error)
+    {
+        Console.WriteLine($"Error when training a model:\n{error.Message}");
+        ObserverUtility<(HttpListenerContext, string)>.NotifyOnError(_observers, error);
+        Stop(isError: true);
+    }
+
+    public void OnCompleted()
+    {
+        Console.WriteLine("Model finished training\nPress Enter to stop the server...");
+    }
+
     public static void SendResponse(HttpListenerContext context, byte[] responseBody, string contentType,
         HttpStatusCode statusCode = HttpStatusCode.OK)
     {
@@ -51,6 +70,7 @@ public class HttpServer : IObservable<(HttpListenerContext, string)>
 
     private void AcceptConnection(HttpListenerContext context)
     {
+        Console.WriteLine($"Http server doing work on thread: {Environment.CurrentManagedThreadId}");
         var request = context.Request;
         if (request.HttpMethod != "GET")
         {
@@ -84,27 +104,21 @@ public class HttpServer : IObservable<(HttpListenerContext, string)>
                 return;
             }
 
-            NotifyObservers(context, keyword);
+            ObserverUtility<(HttpListenerContext, string)>.NotifyOnNext(_observers, (context, keyword));
         }
         catch (HttpRequestException)
         {
             Console.WriteLine("API returned an error!");
-            SendResponse(context, "API returned an error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
+            SendResponse(context, "Http request error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
         }
-        catch (Exception)
+        catch (Exception error)
         {
-            Console.WriteLine("Unknown error!");
-            SendResponse(context, "Unknown error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
+            SendResponse(context, "Unknown server error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
+            ObserverUtility<(HttpListenerContext, string)>.NotifyOnError(_observers, error);
         }
     }
-
-    private void NotifyObservers(HttpListenerContext context, string keyword)
-    {
-        foreach (var observer in _observers)
-            observer.OnNext((context, keyword));
-    }
-
-    public void Start()
+    
+    private void Start()
     {
         _httpListener.Start();
         _running = true;
@@ -112,11 +126,14 @@ public class HttpServer : IObservable<(HttpListenerContext, string)>
         Console.WriteLine("Server started!");
     }
 
-    public void Stop()
+    public void Stop(bool isError = false)
     {
         _httpListener.Stop();
         _running = false;
         Console.WriteLine("Server stopped!");
+        
+        if (!isError)
+            ObserverUtility<(HttpListenerContext, string)>.NotifyOnCompleted(_observers);
     }
 
     private async void Listen()
@@ -139,6 +156,7 @@ public class HttpServer : IObservable<(HttpListenerContext, string)>
             catch (Exception e)
             {
                 Console.WriteLine("Unexpected server error: " + e.Message);
+                ObserverUtility<(HttpListenerContext, string)>.NotifyOnError(_observers, e);
             }
         }
     }

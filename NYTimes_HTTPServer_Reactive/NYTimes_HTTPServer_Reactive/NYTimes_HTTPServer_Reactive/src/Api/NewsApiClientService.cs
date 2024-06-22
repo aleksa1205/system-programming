@@ -6,7 +6,7 @@ namespace NYTimes_HTTPServer_Reactive.Api;
 
 public class NewsApiClientService(int maxResultLength = 100)
 {
-    private readonly NewsApiClient _newsApiClient = new NewsApiClient("f8aeb492cf6b4507b2ba6f6879994498");
+    private readonly NewsApiClient _newsApiClient = new NewsApiClient("1eba372932c343c8a45752eb795bd5fa");
     private int MaxResultLength { get; } = maxResultLength;
 
     private List<string> GetContentFromResponse(ArticlesResult response)
@@ -15,7 +15,8 @@ public class NewsApiClientService(int maxResultLength = 100)
         
         if (response.Status == Statuses.Ok)
         {
-            Console.WriteLine($"Number of articles found: {response.TotalResults}.\nFirst {MaxResultLength} will be returned.");
+            var numberToPrint = MaxResultLength > response.TotalResults ? response.TotalResults : MaxResultLength;
+            Console.WriteLine($"\nNumber of articles found: {response.TotalResults}.\nFirst {numberToPrint} will be returned.\n");
 
             result = 
                 (from article in response.Articles

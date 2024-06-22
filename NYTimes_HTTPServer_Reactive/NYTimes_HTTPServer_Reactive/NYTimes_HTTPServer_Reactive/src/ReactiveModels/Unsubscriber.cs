@@ -1,4 +1,4 @@
-﻿namespace NYTimes_HTTPServer_Reactive;
+﻿namespace NYTimes_HTTPServer_Reactive.ReactiveModels;
 
 public class Unsubscriber<T> : IDisposable
 {

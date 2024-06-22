@@ -2,39 +2,40 @@
 using NYTimes_HTTPServer_Reactive.AiModel;
 using Spectre.Console;
 using Console = Spectre.Console.AnsiConsole;
+using NYTimes_HTTPServer_Reactive.ReactiveModels;
 
 namespace NYTimes_HTTPServer_Reactive.ReactiveLayers;
 
 public class ModelTraining : IObservable<bool>
 {
-    private readonly MLContext _mlContext = new MLContext(seed: 0);
-    private readonly string _appPath = Path.GetDirectoryName(Environment.GetCommandLineArgs()[0]) ?? ".";
-    private readonly string _dataPath;
-    private readonly string _modelPath;
-    private PredictionEngine<SentimentData, SentimentPrediction>? _predictionEngine;
+    private readonly MLContext _mlContext = new (seed: 0);
+    private readonly string _dataPath = Utils.GetDataPath();
+    private readonly string _modelPath = Utils.GetModelPath();
     private ITransformer? _trainedModel;
     private IDataView? _trainingDataView;
     private DataOperationsCatalog.TrainTestData _trainingDataViewSplit;
 
     private readonly List<IObserver<bool>> _observers = [];
 
-    public ModelTraining()
-    {
-        var srcPath = Path.Combine(_appPath, "..", "..", "..", "src");
-        _dataPath = Path.Combine(srcPath, "AiModel", "Data", "sentiment_data.csv");
-        _modelPath = Path.Combine(srcPath, "AiModel", "Models", "model.zip");
-    }
-
     public void StartTraining()
     {
-        _trainingDataView = _mlContext.Data.LoadFromTextFile<SentimentData>(_dataPath, separatorChar: ',');
-        _trainingDataViewSplit = _mlContext.Data.TrainTestSplit(_trainingDataView, testFraction: 0.2);
-
-        var pipeline = ProcessData();
-        var trainingPipeline = BuildAndTrainModel(_trainingDataView, pipeline);
-        Evaluate(_trainingDataView.Schema);
+        System.Console.WriteLine($"Model training started on thread: {Environment.CurrentManagedThreadId}");
         
-        NotifyObservers();
+        try
+        {
+            _trainingDataView = _mlContext.Data.LoadFromTextFile<SentimentData>(_dataPath, separatorChar: ',');
+            _trainingDataViewSplit = _mlContext.Data.TrainTestSplit(_trainingDataView, testFraction: 0.2);
+
+            var pipeline = ProcessData();
+            var trainingPipeline = BuildAndTrainModel(_trainingDataView, pipeline);
+            Evaluate(_trainingDataView.Schema);
+            
+            ObserverUtility<bool>.NotifyOnNextOnCompleted(_observers, true);
+        }
+        catch (Exception e)
+        {
+            ObserverUtility<bool>.NotifyOnError(_observers, e);
+        }
     }
 
     public IDisposable Subscribe(IObserver<bool> observer)
@@ -43,15 +44,6 @@ public class ModelTraining : IObservable<bool>
             _observers.Add(observer);
 
         return new Unsubscriber<bool>(_observers, observer);
-    }
-
-    private void NotifyObservers()
-    {
-        foreach (var observer in _observers)
-        {
-            observer.OnNext(true);
-            observer.OnCompleted();
-        }
     }
 
     private IEstimator<ITransformer> ProcessData()
@@ -74,8 +66,6 @@ public class ModelTraining : IObservable<bool>
             .Append(_mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
 
         _trainedModel = trainingPipeline.Fit(_trainingDataViewSplit.TrainSet);
-        
-        _predictionEngine = _mlContext.Model.CreatePredictionEngine<SentimentData, SentimentPrediction>(_trainedModel);
         
         return trainingPipeline;
     }

@@ -1,46 +1,37 @@
 ﻿using System.Net;
+using System.Reactive.Concurrency;
 using Microsoft.ML;
 using NYTimes_HTTPServer_Reactive.AiModel;
+using NYTimes_HTTPServer_Reactive.ReactiveModels;
 
 namespace NYTimes_HTTPServer_Reactive.ReactiveLayers;
 
-public class AnalyzedContent
+public class SentimentAnalysis : IObservable<(HttpListenerContext, List<SentimentPrediction>)>, IObserver<(HttpListenerContext, List<string>)>
 {
-    public required string ContentText { get; set; }
-    public required string Sentiment { get; set; }
-}
-
-public class ModelNotTrainedException : Exception
-{
-    public ModelNotTrainedException() { }
-    public ModelNotTrainedException(string msg) : base(msg) { }
-}
-
-public class SentimentAnalysis : 
-    IObservable<(HttpListenerContext, List<AnalyzedContent>)>, 
-    IObserver<(HttpListenerContext, List<string>)>,
-    IObserver<bool>
-{
-    private readonly List<IObserver<(HttpListenerContext, List<AnalyzedContent>)>> _observers = [];
-    private bool _isModelTrained = false;
+    private readonly List<IObserver<(HttpListenerContext, List<SentimentPrediction>)>> _observers = [];
     private PredictionEngine<SentimentData, SentimentPrediction>? _predictionEngine;
 
-    public IDisposable Subscribe(IObserver<(HttpListenerContext, List<AnalyzedContent>)> observer)
+    public IDisposable Subscribe(IObserver<(HttpListenerContext, List<SentimentPrediction>)> observer)
     {
         if(!_observers.Contains(observer))
             _observers.Add(observer);
 
-        return new Unsubscriber<(HttpListenerContext, List<AnalyzedContent>)>(_observers, observer);
+        return new Unsubscriber<(HttpListenerContext, List<SentimentPrediction>)>(_observers, observer);
     }
 
     public void OnNext((HttpListenerContext, List<string>) value)
     {
+        Console.WriteLine($"Sentiment analysis received value on thread: {Environment.CurrentManagedThreadId}");
+        
         var context = value.Item1;
         var contentList = value.Item2;
-        if (_isModelTrained)
+
+        try
         {
-            List<AnalyzedContent> result = [];
-            if (_predictionEngine is null) 
+            Console.WriteLine($"Sentiment analysis doing work on thread: {Environment.CurrentManagedThreadId}");
+            
+            List<SentimentPrediction> result = [];
+            if (_predictionEngine is null)
                 LoadModel();
 
             foreach (var contentElement in contentList)
@@ -49,48 +40,37 @@ public class SentimentAnalysis :
                 {
                     SentimentText = contentElement
                 };
-                
-                var prediction = _predictionEngine!.Predict(input);
-                var output = new AnalyzedContent
-                {
-                    Sentiment = prediction.Prediction!,
-                    ContentText = contentElement
-                };
-                result.Add(output);
-            }
-            
-            NotifyObservers(context, result);
-        }
-        else
-            throw new ModelNotTrainedException();
-    }
 
-    public void OnNext(bool value)
-    {
-        _isModelTrained = value;
+                var prediction = _predictionEngine!.Predict(input);
+                result.Add(prediction);
+            }
+
+            ObserverUtility<(HttpListenerContext, List<SentimentPrediction>)>.NotifyOnNext(_observers,
+                (context, result));
+        }
+        catch (Exception e)
+        {
+            HttpServer.SendResponse(context, "Prediction error"u8.ToArray(), "text/plain",
+                HttpStatusCode.InternalServerError);
+            ObserverUtility<(HttpListenerContext, List<SentimentPrediction>)>.NotifyOnError(_observers, e);
+        }
     }
 
     public void OnError(Exception error)
     {
-        throw new NotImplementedException();
+        Console.WriteLine($"NewsApiCall layer returned an error:\n{error.Message}");
+        ObserverUtility<(HttpListenerContext, List<SentimentPrediction>)>.NotifyOnError(_observers, error);
     }
 
     public void OnCompleted()
     {
-        Console.WriteLine("");
-    }
-
-    private void NotifyObservers(HttpListenerContext context, List<AnalyzedContent> analyzedList)
-    {
-        foreach (var observer in _observers)
-            observer.OnNext((context, analyzedList));
+        Console.WriteLine("Observation completed for SentimentAnalysis layer.");
+        ObserverUtility<(HttpListenerContext, List<SentimentPrediction>)>.NotifyOnCompleted(_observers);
     }
 
     private void LoadModel()
     {
-        var appPath = Path.GetDirectoryName(Environment.GetCommandLineArgs()[0]) ?? ".";
-        var srcPath = Path.Combine(appPath, "..", "..", "..", "src");
-        var modelPath = Path.Combine(srcPath, "AiModel", "Models", "model.zip");
+        var modelPath = Utils.GetModelPath();
         
         var context = new MLContext(seed: 0);
         var model = context.Model.Load(modelPath, out var modelInputSchema);
