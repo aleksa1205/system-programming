@@ -106,10 +106,11 @@ public class HttpServer : IObservable<(HttpListenerContext, string)>, IObserver<
 
             ObserverUtility<(HttpListenerContext, string)>.NotifyOnNext(_observers, (context, keyword));
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException error)
         {
             Console.WriteLine("API returned an error!");
             SendResponse(context, "Http request error!"u8.ToArray(), "text/plain", HttpStatusCode.InternalServerError);
+            ObserverUtility<(HttpListenerContext, string)>.NotifyOnError(_observers, error);
         }
         catch (Exception error)
         {
