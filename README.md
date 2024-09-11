@@ -33,7 +33,7 @@ Get all the books for the author with given name and surname.
 #### Third project
 
 ```http
-  GET http://address:port/
+  GET http://address:port/keyword
 ```
 
 | Parameter      | Type     | Description                |
