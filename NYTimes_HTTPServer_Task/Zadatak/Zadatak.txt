@@ -1,0 +1,2 @@
+Koristeći principe Reaktivnog programiranja i News API, implementirati aplikaciju za prikaz sadržaja za određene članke (content property). Koristiti /v2/everything endpoint. Prilikom poziva proslediti odgovarajuću ključnu reč (keyword). Za prikupljene sadržaje implementirati Sentiment analizu koristeći SentimentAnalysis.NET ili ML.NET biblioteke. Prikazati dobijene rezultate. 
+Dokumentacija dostupna na linku: https://newsapi.org/

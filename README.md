@@ -1,24 +1,22 @@
-# System programming (Sistemsko programiranje)
+# System Programming (Sistemsko programiranje)
+**Grade: 97/100**
 
-## Built for university course, graded 97 out of 100.
+This repository contains three projects developed as part of a university course on **System Programming**. Each project involved implementing a web server with increasing complexity, focusing on concurrency, asynchronous programming, and reactive programming principles.
+## First project
+In this project, we developed a web server as a console application. The server was responsible for logging all incoming requests and capturing details about their processing, including errors and successful responses.
 
-Course consisted of three projects.
+To enhance performance, we implemented in-memory caching, allowing the server to return precomputed responses for repeated requests. The server used the **New York Times Books API** as a data source, enabling users to search for books by author. Requests were handled exclusively via the `GET` method, and if no books were found for a given author, the server returned an error message.
 
-### First project
-In the first project, we had to implement a web server as console application. The server was responsible for logging all incoming requests and recording information about how they were processed.  
 
-Additionally, we had to implement memory caching to optimize performance.
-For this project, we were provided with NY Times API as a data source that should allow users to search for books. The search was filtered by author, as defined in the query and only the GET method was permitted. If no books were found for the given author, an error was returned.
+## Second project
+In the second project, the goal remained the same as in the first one, but instead of using threads, we were required to implement tasks and asynchronous operations where applicable.
+## Third project
+In this project, we developed a web server as a console application that logged all incoming requests and provided detailed execution information. The implementation required using **.NET Reactive Extensions (Rx)** to follow the reactive programming paradigm. To ensure concurrency, Rx had to be multithreaded, leveraging schedulers for task execution.
 
-### Second project
-In the second project, the goal remained the same as in the first one, but the key difference was that tasks and asynchronous operations had to be used instead of threads for handling operations.
-
-### Third project
-In the third project, we were tasked with implementing web server as a console appliaction that logs all requests and provedes detailed information about their execution. The implementation required the use of .NET RX to follow the reactive programming paradigm. RX had to be multithreaded, utilizing schedulers for concurrency. We were provided with News API to display content of one article and for the data collection sentiment analysis was to be applied.
-### API Reference
-
+The server utilized the **News API** to retrieve and display the content of an article based on a given keyword. Additionally, sentiment analysis was performed on the collected data.
+## API Reference
 #### First and second project
-Get all the books for the author with given name and surname.
+Retrieve all books written by a given author.
 
 ```http
   GET http://address:port/name_surname
@@ -31,7 +29,7 @@ Get all the books for the author with given name and surname.
 | `name_surname` | `string` | **Required**. Name and surname of the author to be searched. |
 
 #### Third project
-
+Retrieve all articles where a specific keyword is present.
 ```http
   GET http://address:port/keyword
 ```
@@ -42,9 +40,42 @@ Get all the books for the author with given name and surname.
 | `port`         | `number` | 5050 by default.           |
 | `keyword`      | `string` | **Required.** What to search for in articles.   |
 
+## Tech Stack
 
+⚙️ **Framework:** .NET 8 (C#)
+
+📡 **APIs Used:** New York Times Books API and News API
+
+
+## Installation
+
+### Prerequisites:
+- **.NET**: [Download .NET](https://dotnet.microsoft.com/en-us/download)
+- **API key for New York Times Books API**: [Register](https://developer.nytimes.com/accounts/create)
+- **API key for News API**: [Register](https://newsapi.org/register)
+
+### Steps to run the projects:
+
+1. Clone the repository: 
+```bash
+git clone https://github.com/aleksa1205/parfumique
+cd system-programming
+```
+2. Navigate to the specific project directory:
+`cd NYTimes_HTPPServer`
+
+3. Update API key(if expired):
+In the `ApiService.cs`, locate the constructor. Inside the constructor, change the value of `apiKey` with your new API key.
+
+4. Run the application:
+```bash
+dotnet restore
+dotnet run
+```
+
+5. Make API request using web browser or Postman.
 ## Authors
+👤  [Aleksa Perić](https://github.com/aleksa1205)
 
-- [Aleksa Perić](https://github.com/aleksa1205)
-- [Jovan Cvetković](https://github.com/CJovan02)
+👤  [Jovan Cvetković](https://github.com/CJovan02)
 
