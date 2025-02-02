@@ -58,7 +58,7 @@ Retrieve all articles where a specific keyword is present.
 
 1. Clone the repository: 
 ```bash
-git clone https://github.com/aleksa1205/parfumique
+https://github.com/aleksa1205/system-programming
 cd system-programming
 ```
 2. Navigate to the specific project directory:
